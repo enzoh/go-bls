@@ -141,7 +141,7 @@ func GenPairing(params Params) Pairing {
 func GenSystem(pairing Pairing) (System, error) {
 
 	// Generate cryptographically secure pseudorandom hash.
-	hash, err := RandomHash()
+	hash, err := randomHash()
 	if err != nil {
 		return System{}, err
 	}
@@ -166,7 +166,7 @@ func GenSystem(pairing Pairing) (System, error) {
 func GenKeys(system System) (PublicKey, PrivateKey, error) {
 
 	// Generate cryptographically secure pseudorandom hash.
-	hash, err := RandomHash()
+	hash, err := randomHash()
 	if err != nil {
 		return PublicKey{}, PrivateKey{}, err
 	}
@@ -205,7 +205,7 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 	for j := range coeff {
 
 		// Generate cryptographically secure pseudorandom hash.
-		hash, err = RandomHash()
+		hash, err = randomHash()
 		if err != nil {
 			return PublicKey{}, nil, PrivateKey{}, nil, err
 		}
@@ -404,7 +404,7 @@ func AggregateVerify(signature []byte, hashes []common.Hash, keys []PublicKey) (
 	}
 
 	// Check uniqueness constraint.
-	if !UniqueHashes(hashes) {
+	if !uniqueHashes(hashes) {
 		return false, errors.New("bls.AggregateVerify: Hashes must be distinct.")
 	}
 
