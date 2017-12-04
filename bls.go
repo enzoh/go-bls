@@ -69,11 +69,11 @@ type PrivateKey struct {
 	x      Element
 }
 
-// GenParamsTypeA -- Generate type A pairing parameters. This function allocates
-// C structures on the C heap using malloc. It is the responsibility of the
-// caller to prevent memory leaks by arranging for the C structures to be freed.
-// More information about type A pairing parameters can be found in the PBC
-// library manual: https://crypto.stanford.edu/pbc/manual/ch08s03.html.
+// Generate type A pairing parameters. This function allocates C structures on
+// the C heap using malloc. It is the responsibility of the caller to prevent
+// memory leaks by arranging for the C structures to be freed. More information
+// about type A pairing parameters can be found in the PBC library manual:
+// https://crypto.stanford.edu/pbc/manual/ch08s03.html.
 func GenParamsTypeA(rbits int, qbits int) Params {
 
 	// Generate pairing parameters.
@@ -85,11 +85,11 @@ func GenParamsTypeA(rbits int, qbits int) Params {
 
 }
 
-// GenParamsTypeD -- Generate type D pairing parameters. This function allocates
-// C structures on the C heap using malloc. It is the responsibility of the
-// caller to prevent memory leaks by arranging for the C structures to be freed.
-// More information about type D pairing parameters can be found in the PBC
-// library manual: https://crypto.stanford.edu/pbc/manual/ch08s06.html.
+// Generate type D pairing parameters. This function allocates C structures on
+// the C heap using malloc. It is the responsibility of the caller to prevent
+// memory leaks by arranging for the C structures to be freed. More information
+// about type D pairing parameters can be found in the PBC library manual:
+// https://crypto.stanford.edu/pbc/manual/ch08s06.html.
 func GenParamsTypeD(d uint, bitlimit uint) (Params, error) {
 
 	// Generate pairing parameters.
@@ -103,11 +103,11 @@ func GenParamsTypeD(d uint, bitlimit uint) (Params, error) {
 
 }
 
-// GenParamsTypeF -- Generate type F pairing parameters. This function allocates
-// C structures on the C heap using malloc. It is the responsibility of the
-// caller to prevent memory leaks by arranging for the C structures to be freed.
-// More information about type F pairing parameters can be found in the PBC
-// library manual: https://crypto.stanford.edu/pbc/manual/ch08s08.html.
+// Generate type F pairing parameters. This function allocates C structures on
+// the C heap using malloc. It is the responsibility of the caller to prevent
+// memory leaks by arranging for the C structures to be freed. More information
+// about type F pairing parameters can be found in the PBC library manual:
+// https://crypto.stanford.edu/pbc/manual/ch08s08.html.
 func GenParamsTypeF(bits int) Params {
 
 	// Generate pairing parameters.
@@ -119,10 +119,9 @@ func GenParamsTypeF(bits int) Params {
 
 }
 
-// GenPairing -- Generate a pairing from the given parameters. This function
-// allocates C structures on the C heap using malloc. It is the responsibility
-// of the caller to prevent memory leaks by arranging for the C structures to be
-// freed.
+// Generate a pairing from the given parameters. This function allocates C
+// structures on the C heap using malloc. It is the responsibility of the caller
+// to prevent memory leaks by arranging for the C structures to be freed.
 func GenPairing(params Params) Pairing {
 
 	// Generate pairing.
@@ -134,10 +133,9 @@ func GenPairing(params Params) Pairing {
 
 }
 
-// GenSystem -- Generate a cryptosystem from the given pairing. This function
-// allocates C structures on the C heap using malloc. It is the responsibility
-// of the caller to prevent memory leaks by arranging for the C structures to be
-// freed.
+// Generate a cryptosystem from the given pairing. This function allocates C
+// structures on the C heap using malloc. It is the responsibility of the caller
+// to prevent memory leaks by arranging for the C structures to be freed.
 func GenSystem(pairing Pairing) (System, error) {
 
 	// Generate cryptographically secure pseudorandom hash.
@@ -159,10 +157,9 @@ func GenSystem(pairing Pairing) (System, error) {
 
 }
 
-// GenKeys -- Generate a key pair from the given cryptosystem. This function
-// allocates C structures on the C heap using malloc. It is the responsibility
-// of the caller to prevent memory leaks by arranging for the C structures to be
-// freed.
+// Generate a key pair from the given cryptosystem. This function allocates C
+// structures on the C heap using malloc. It is the responsibility of the caller
+// to prevent memory leaks by arranging for the C structures to be freed.
 func GenKeys(system System) (PublicKey, PrivateKey, error) {
 
 	// Generate cryptographically secure pseudorandom hash.
@@ -186,11 +183,11 @@ func GenKeys(system System) (PublicKey, PrivateKey, error) {
 
 }
 
-// GenKeyShares -- Generate a key pair from the given cryptosystem and divide
-// each key into n shares such that t shares can combine to produce a valid
-// signature. This function allocates C structures on the C heap using malloc.
-// It is the responsibility of the caller to prevent memory leaks by arranging
-// for the C structures to be freed.
+// Generate a key pair from the given cryptosystem and divide each key into n
+// shares such that t shares can combine to produce a valid signature. This
+// function allocates C structures on the C heap using malloc. It is the
+// responsibility of the caller to prevent memory leaks by arranging for the C
+// structures to be freed.
 func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateKey, []PrivateKey, error) {
 
 	// Check threshold parameters.
@@ -263,7 +260,7 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 
 }
 
-// Sign -- Sign a hash using the private key.
+// Sign a hash using the private key.
 func Sign(hash common.Hash, secret PrivateKey) ([]byte, error) {
 
 	// Check signature length.
@@ -294,7 +291,7 @@ func Sign(hash common.Hash, secret PrivateKey) ([]byte, error) {
 
 }
 
-// Verify -- Verify the signature of a hash using the public key.
+// Verify the signature of a hash using the public key.
 func Verify(signature []byte, hash common.Hash, key PublicKey) (bool, error) {
 
 	// Check signature length.
@@ -341,7 +338,7 @@ func Verify(signature []byte, hash common.Hash, key PublicKey) (bool, error) {
 
 }
 
-// Aggregate -- Aggregate signatures using the cryptosystem.
+// Aggregate signatures using the cryptosystem.
 func Aggregate(signatures [][]byte, system System) ([]byte, error) {
 
 	// Check list length.
@@ -383,8 +380,7 @@ func Aggregate(signatures [][]byte, system System) ([]byte, error) {
 
 }
 
-// AggregateVerify -- Verify the aggregate signature of the hashes using the
-// public keys.
+// Verify the aggregate signature of the hashes using the public keys.
 func AggregateVerify(signature []byte, hashes []common.Hash, keys []PublicKey) (bool, error) {
 
 	// Check list length.
@@ -450,8 +446,8 @@ func AggregateVerify(signature []byte, hashes []common.Hash, keys []PublicKey) (
 
 }
 
-// Recover -- Recover a signature from the signature shares provided by the
-// group members using the cryptosystem.
+// Recover a signature from the signature shares provided by the group members
+// using the cryptosystem.
 func Recover(signatures [][]byte, memberIds []int, system System) ([]byte, error) {
 
 	// Check list length.
@@ -529,38 +525,38 @@ func Recover(signatures [][]byte, memberIds []int, system System) ([]byte, error
 
 }
 
-// Free -- Free the memory occupied by the element. The element cannot be used
-// after calling this function.
+// Free the memory occupied by the element. The element cannot be used after
+// calling this function.
 func (element Element) Free() {
 	C.element_clear(element.get)
 }
 
-// Free -- Free the memory occupied by the pairing parameters. The parameters
-// cannot be used after calling this function.
+// Free the memory occupied by the pairing parameters. The parameters cannot be
+// used after calling this function.
 func (params Params) Free() {
 	C.pbc_param_clear(params.get)
 }
 
-// Free -- Free the memory occupied by the pairing. The pairing cannot be used
-// after calling this function.
+// Free the memory occupied by the pairing. The pairing cannot be used after
+// calling this function.
 func (pairing Pairing) Free() {
 	C.pairing_clear(pairing.get)
 }
 
-// Free -- Free the memory occupied by the cryptosystem. The cryptosystem cannot
-// be used after calling this function.
+// Free the memory occupied by the cryptosystem. The cryptosystem cannot be used
+// after calling this function.
 func (system System) Free() {
 	system.g.Free()
 }
 
-// Free -- Free the memory occupied by the public key. The public key cannot be
-// used after calling this function.
+// Free the memory occupied by the public key. The public key cannot be used
+// after calling this function.
 func (key PublicKey) Free() {
 	key.gx.Free()
 }
 
-// Free -- Free the memory occupied by the private key. The private key cannot
-// be used after calling this function.
+// Free the memory occupied by the private key. The private key cannot be used
+// after calling this function.
 func (secret PrivateKey) Free() {
 	secret.x.Free()
 }
