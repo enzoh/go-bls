@@ -5,7 +5,7 @@
 This library provides a high-level API for signing and verifying message digests using the Boneh–Lynn–Shacham (BLS) signature scheme.
 
 ## Prerequisites
-Install the pairing-based cryptography (PBC) library.
+Install the pairing-based cryptography library.
 ```bash
 wget https://crypto.stanford.edu/pbc/files/pbc-0.5.14.tar.gz
 if [[ $(sha256sum pbc-0.5.14.tar.gz) = \
@@ -31,3 +31,7 @@ go get github.com/enzoh/go-bls
 
 ## Usage
 Check out the [documentation](https://godoc.org/github.com/enzoh/go-bls).
+
+## License
+
+GPLv3
