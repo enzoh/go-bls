@@ -1,0 +1,25 @@
+dist: trusty
+install:
+# Install PBC
+- travis_retry wget https://crypto.stanford.edu/pbc/files/pbc-0.5.14.tar.gz
+- tar xf pbc-0.5.14.tar.gz
+- pushd pbc-0.5.14
+- sh configure
+- make
+- sudo make install
+- popd
+- export LD_LIBRARY_PATH=/usr/local/lib
+# Install Go
+- rm -r /home/travis/.gimme/versions/go1.7.4.linux.amd64
+- travis_retry wget https://storage.googleapis.com/golang/go1.9.linux-amd64.tar.gz
+- tar xf go1.9.linux-amd64.tar.gz
+- sudo mv go /usr/local
+- mkdir $HOME/go
+- export GOROOT=/usr/local/go
+- export PATH=$PATH:$GOROOT/bin
+- export GOPATH=$HOME/go
+# Install Ethereum
+- travis_retry go get github.com/ethereum/go-ethereum
+script:
+- go build
+- go test
