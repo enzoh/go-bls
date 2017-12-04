@@ -2,7 +2,7 @@
 [![Build Status](https://travis-ci.org/enzoh/go-bls.svg?branch=master)](https://travis-ci.org/enzoh/go-bls?branch=master)
 
 ## Overview
-This library provides a high-level API for signing and verifying message digests using the Boneh–Lynn–Shacham (BLS) signature scheme.
+This library provides a high-level API for signing and verifying message digests using the BLS signature scheme.
 
 ## Prerequisites
 Install the pairing-based cryptography library.
