@@ -18,8 +18,6 @@ install:
 - export GOROOT=/usr/local/go
 - export PATH=$PATH:$GOROOT/bin
 - export GOPATH=$HOME/go
-# Install Ethereum
-- travis_retry go get github.com/ethereum/go-ethereum
 script:
 - go build
 - go test

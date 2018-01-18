@@ -1,7 +1,7 @@
 /**
  * File        : util_test.go
  * Description : Unit tests.
- * Copyright   : Copyright (c) 2017 DFINITY Stiftung. All rights reserved.
+ * Copyright   : Copyright (c) 2017-2018 DFINITY Stiftung. All rights reserved.
  * Maintainer  : Enzo Haussecker <enzo@dfinity.org>
  * Stability   : Stable
  *
@@ -11,36 +11,34 @@
 package bls
 
 import (
+	"crypto/sha256"
 	"math/rand"
 	"testing"
 	"time"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func TestSortHashes(test *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	n := rand.Intn(10)
+	n := rand.Intn(100)
 	hashes, err := randomHashes(n)
 	if err != nil {
 		test.Fatal(err)
 	}
 	sortHashes(hashes)
 	for i := 0; i < n-1; i++ {
-		if hashes[i].Big().Cmp(hashes[i+1].Big()) == 1 {
+		if compare(hashes[i], hashes[i+1]) == 1 {
 			test.Fatal(hashes)
 		}
 	}
 }
 
 func TestUniqueHashes(test *testing.T) {
-	words := []string{"Kiwi", "Apple", "Orange", "Peach", "Bananna"}
-	hashes := make([]common.Hash, len(words))
+	words := []string{"Apple", "Bananna", "Kiwi", "Mango", "Orange", "Pineapple", "Tangerine"}
+	hashes := make([][sha256.Size]byte, len(words))
 	for i := range words {
-		hashes[i] = crypto.Keccak256Hash([]byte(words[i]))
+		hashes[i] = sha256.Sum256([]byte(words[i]))
 	}
 	if !uniqueHashes(hashes) {
-		test.Fatal("Unexpected duplicate hash.")
+		test.Fatal("unexpected duplicate hash")
 	}
 }

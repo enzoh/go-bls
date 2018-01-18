@@ -1,7 +1,7 @@
 /**
  * File        : bls.go
  * Description : Boneh-Lynn-Shacham signature scheme.
- * Copyright   : Copyright (c) 2017 DFINITY Stiftung. All rights reserved.
+ * Copyright   : Copyright (c) 2017-2018 DFINITY Stiftung. All rights reserved.
  * Maintainer  : Enzo Haussecker <enzo@dfinity.org>
  * Stability   : Stable
  *
@@ -11,11 +11,10 @@
 package bls
 
 import (
+	"crypto/sha256"
 	"errors"
 	"math/big"
 	"unsafe"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 /*
@@ -147,7 +146,7 @@ func GenSystem(pairing Pairing) (System, error) {
 	// Set system parameter.
 	g := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_G2(g, pairing.get)
-	C.element_from_hash(g, unsafe.Pointer(&(*hash)[0]), C.int(common.HashLength))
+	C.element_from_hash(g, unsafe.Pointer(&hash[0]), sha256.Size)
 
 	// Calculate signature length.
 	signatureLength := int(C.pairing_length_in_bytes_compressed_G1(pairing.get))
@@ -171,7 +170,7 @@ func GenKeys(system System) (PublicKey, PrivateKey, error) {
 	// Set private key.
 	x := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_Zr(x, system.pairing.get)
-	C.element_from_hash(x, unsafe.Pointer(&(*hash)[0]), C.int(common.HashLength))
+	C.element_from_hash(x, unsafe.Pointer(&hash[0]), sha256.Size)
 
 	// Calculate corresponding public key.
 	gx := (*C.struct_element_s)(C.malloc(sizeOfElement))
@@ -197,7 +196,7 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 
 	// Generate polynomial.
 	coeff := make([]*C.struct_element_s, t)
-	var hash *common.Hash
+	var hash [sha256.Size]byte
 	var err error
 	for j := range coeff {
 
@@ -210,7 +209,7 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 		// Set polynomial coefficient.
 		coeff[j] = (*C.struct_element_s)(C.malloc(sizeOfElement))
 		C.element_init_Zr(coeff[j], system.pairing.get)
-		C.element_from_hash(coeff[j], unsafe.Pointer(&(*hash)[0]), C.int(common.HashLength))
+		C.element_from_hash(coeff[j], unsafe.Pointer(&hash[0]), sha256.Size)
 
 	}
 
@@ -261,7 +260,7 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 }
 
 // Sign a hash using the private key.
-func Sign(hash common.Hash, secret PrivateKey) ([]byte, error) {
+func Sign(hash [sha256.Size]byte, secret PrivateKey) ([]byte, error) {
 
 	// Check signature length.
 	if secret.system.signatureLength <= 0 {
@@ -271,7 +270,7 @@ func Sign(hash common.Hash, secret PrivateKey) ([]byte, error) {
 	// Calculate h.
 	h := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_G1(h, secret.system.pairing.get)
-	C.element_from_hash(h, unsafe.Pointer(&hash[0]), C.int(common.HashLength))
+	C.element_from_hash(h, unsafe.Pointer(&hash[0]), sha256.Size)
 
 	// Calculate sigma.
 	sigma := (*C.struct_element_s)(C.malloc(sizeOfElement))
@@ -292,7 +291,7 @@ func Sign(hash common.Hash, secret PrivateKey) ([]byte, error) {
 }
 
 // Verify the signature of a hash using the public key.
-func Verify(signature []byte, hash common.Hash, key PublicKey) (bool, error) {
+func Verify(signature []byte, hash [sha256.Size]byte, key PublicKey) (bool, error) {
 
 	// Check signature length.
 	if key.system.signatureLength <= 0 {
@@ -315,7 +314,7 @@ func Verify(signature []byte, hash common.Hash, key PublicKey) (bool, error) {
 	// Calculate h.
 	h := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_G1(h, key.system.pairing.get)
-	C.element_from_hash(h, unsafe.Pointer(&hash[0]), C.int(common.HashLength))
+	C.element_from_hash(h, unsafe.Pointer(&hash[0]), sha256.Size)
 
 	// Calculate right-hand side.
 	rhs := (*C.struct_element_s)(C.malloc(sizeOfElement))
@@ -381,7 +380,7 @@ func Aggregate(signatures [][]byte, system System) ([]byte, error) {
 }
 
 // Verify the aggregate signature of the hashes using the public keys.
-func AggregateVerify(signature []byte, hashes []common.Hash, keys []PublicKey) (bool, error) {
+func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []PublicKey) (bool, error) {
 
 	// Check list length.
 	if len(hashes) == 0 {
@@ -417,14 +416,14 @@ func AggregateVerify(signature []byte, hashes []common.Hash, keys []PublicKey) (
 	// Calculate right-hand side.
 	h := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_G1(h, keys[0].system.pairing.get)
-	C.element_from_hash(h, unsafe.Pointer(&hashes[0][0]), C.int(common.HashLength))
+	C.element_from_hash(h, unsafe.Pointer(&hashes[0][0]), sha256.Size)
 	rhs := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_GT(rhs, keys[0].system.pairing.get)
 	C.element_pairing(rhs, h, keys[0].gx.get)
 	t := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_GT(t, keys[0].system.pairing.get)
 	for i := 1; i < len(hashes); i++ {
-		C.element_from_hash(h, unsafe.Pointer(&hashes[i][0]), C.int(common.HashLength))
+		C.element_from_hash(h, unsafe.Pointer(&hashes[i][0]), sha256.Size)
 		C.element_pairing(t, h, keys[i].gx.get)
 		C.element_mul(rhs, rhs, t)
 	}

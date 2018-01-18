@@ -1,11 +1,11 @@
 package main
 
 import (
+	"crypto/sha256"
 	"math/rand"
 	"time"
 
 	"github.com/enzoh/go-bls"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func main() {
@@ -41,7 +41,7 @@ func main() {
 
 	// Let each participant sign a message with their share of the secret key.
 	message := "This is a message."
-	hash := crypto.Keccak256Hash([]byte(message))
+	hash := sha256.Sum256([]byte(message))
 	signatures := make([][]byte, threshold)
 	for i := 0; i < threshold; i++ {
 		signatures[i], err = bls.Sign(hash, memberSecKeys[participants[i]])

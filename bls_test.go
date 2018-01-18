@@ -1,22 +1,20 @@
 /**
  * File        : bls_test.go
  * Description : Unit tests.
- * Copyright   : Copyright (c) 2017 DFINITY Stiftung. All rights reserved.
+ * Copyright   : Copyright (c) 2017-2018 DFINITY Stiftung. All rights reserved.
  * Maintainer  : Enzo Haussecker <enzo@dfinity.org>
  * Stability   : Stable
  *
- * This module provides unit tests for Boneh-Lynn-Shacham signature scheme.
+ * This module provides unit tests for the Boneh-Lynn-Shacham signature scheme.
  */
 
 package bls
 
 import (
+	"crypto/sha256"
 	"math/rand"
 	"testing"
 	"time"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func TestSignVerify(test *testing.T) {
@@ -36,7 +34,7 @@ func TestSignVerify(test *testing.T) {
 	}
 
 	// Sign message.
-	hash := crypto.Keccak256Hash([]byte(message))
+	hash := sha256.Sum256([]byte(message))
 	signature, err := Sign(hash, secret)
 	if err != nil {
 		test.Fatal(err)
@@ -90,10 +88,10 @@ func TestAggregateVerify(test *testing.T) {
 	}
 
 	// Sign messages.
-	hashes := make([]common.Hash, n)
+	hashes := make([][sha256.Size]byte, n)
 	signatures := make([][]byte, n)
 	for i := 0; i < n; i++ {
-		hashes[i] = crypto.Keccak256Hash([]byte(messages[i]))
+		hashes[i] = sha256.Sum256([]byte(messages[i]))
 		signatures[i], err = Sign(hashes[i], secrets[i])
 		if err != nil {
 			test.Fatal(err)
@@ -149,7 +147,7 @@ func TestThresholdSignature(test *testing.T) {
 	memberIds := rand.Perm(n)[:t]
 
 	// Sign message.
-	hash := crypto.Keccak256Hash([]byte(message))
+	hash := sha256.Sum256([]byte(message))
 	signatures := make([][]byte, t)
 	for i := 0; i < t; i++ {
 		signatures[i], err = Sign(hash, memberSecrets[memberIds[i]])
@@ -203,7 +201,7 @@ func BenchmarkVerify(benchmark *testing.B) {
 	}
 
 	// Sign message.
-	hash := crypto.Keccak256Hash([]byte(message))
+	hash := sha256.Sum256([]byte(message))
 	signature, err := Sign(hash, secret)
 	if err != nil {
 		benchmark.Fatal(err)
