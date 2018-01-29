@@ -5,7 +5,8 @@
  * Maintainer  : Enzo Haussecker <enzo@dfinity.org>
  * Stability   : Stable
  *
- * This module implements the Boneh-Lynn-Shacham signature scheme.
+ * This module implements the Boneh-Lynn-Shacham signature scheme. It includes
+ * support for aggregate signatures, threshold signatures, and ring signatures.
  */
 
 package bls
@@ -36,9 +37,9 @@ int search(pbc_param_ptr params, unsigned int d, unsigned int bitlimit) {
 */
 import "C"
 
-var sizeOfElement = C.size_t(unsafe.Sizeof(C.struct_element_s{}))
-var sizeOfParams = C.size_t(unsafe.Sizeof(C.struct_pbc_param_s{}))
-var sizeOfPairing = C.size_t(unsafe.Sizeof(C.struct_pairing_s{}))
+const sizeOfElement = C.size_t(unsafe.Sizeof(C.struct_element_s{}))
+const sizeOfParams = C.size_t(unsafe.Sizeof(C.struct_pbc_param_s{}))
+const sizeOfPairing = C.size_t(unsafe.Sizeof(C.struct_pairing_s{}))
 
 type Element struct {
 	get *C.struct_element_s
@@ -74,14 +75,9 @@ type PrivateKey struct {
 // about type A pairing parameters can be found in the PBC library manual:
 // https://crypto.stanford.edu/pbc/manual/ch08s03.html.
 func GenParamsTypeA(rbits int, qbits int) Params {
-
-	// Generate pairing parameters.
 	params := (*C.struct_pbc_param_s)(C.malloc(sizeOfParams))
 	C.pbc_param_init_a_gen(params, C.int(rbits), C.int(qbits))
-
-	// Return result.
 	return Params{params}
-
 }
 
 // Generate type D pairing parameters. This function allocates C structures on
@@ -90,16 +86,11 @@ func GenParamsTypeA(rbits int, qbits int) Params {
 // about type D pairing parameters can be found in the PBC library manual:
 // https://crypto.stanford.edu/pbc/manual/ch08s06.html.
 func GenParamsTypeD(d uint, bitlimit uint) (Params, error) {
-
-	// Generate pairing parameters.
 	params := (*C.struct_pbc_param_s)(C.malloc(sizeOfParams))
 	if C.search(params, C.uint(d), C.uint(bitlimit)) == 0 {
 		return Params{}, errors.New("bls.GenParamsTypeD: No suitable curves for this discriminant.")
 	}
-
-	// Return result.
 	return Params{params}, nil
-
 }
 
 // Generate type F pairing parameters. This function allocates C structures on
@@ -108,28 +99,18 @@ func GenParamsTypeD(d uint, bitlimit uint) (Params, error) {
 // about type F pairing parameters can be found in the PBC library manual:
 // https://crypto.stanford.edu/pbc/manual/ch08s08.html.
 func GenParamsTypeF(bits int) Params {
-
-	// Generate pairing parameters.
 	params := (*C.struct_pbc_param_s)(C.malloc(sizeOfParams))
 	C.pbc_param_init_f_gen(params, C.int(bits))
-
-	// Return result.
 	return Params{params}
-
 }
 
 // Generate a pairing from the given parameters. This function allocates C
 // structures on the C heap using malloc. It is the responsibility of the caller
 // to prevent memory leaks by arranging for the C structures to be freed.
 func GenPairing(params Params) Pairing {
-
-	// Generate pairing.
 	pairing := (*C.struct_pairing_s)(C.malloc(sizeOfPairing))
 	C.pairing_init_pbc_param(pairing, params.get)
-
-	// Return result.
 	return Pairing{pairing}
-
 }
 
 // Generate a cryptosystem from the given pairing. This function allocates C
@@ -137,21 +118,21 @@ func GenPairing(params Params) Pairing {
 // to prevent memory leaks by arranging for the C structures to be freed.
 func GenSystem(pairing Pairing) (System, error) {
 
-	// Generate cryptographically secure pseudorandom hash.
+	// Generate a cryptographically secure pseudorandom hash.
 	hash, err := randomHash()
 	if err != nil {
 		return System{}, err
 	}
 
-	// Set system parameter.
+	// Derive the system parameter from the pseudorandom hash.
 	g := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_G2(g, pairing.get)
 	C.element_from_hash(g, unsafe.Pointer(&hash[0]), sha256.Size)
 
-	// Calculate signature length.
+	// Determine the length of a signature.
 	signatureLength := int(C.pairing_length_in_bytes_compressed_G1(pairing.get))
 
-	// Return result.
+	// Return the cryptosystem.
 	return System{pairing, Element{g}, signatureLength}, nil
 
 }
@@ -161,59 +142,59 @@ func GenSystem(pairing Pairing) (System, error) {
 // to prevent memory leaks by arranging for the C structures to be freed.
 func GenKeys(system System) (PublicKey, PrivateKey, error) {
 
-	// Generate cryptographically secure pseudorandom hash.
+	// Generate a cryptographically secure pseudorandom hash.
 	hash, err := randomHash()
 	if err != nil {
 		return PublicKey{}, PrivateKey{}, err
 	}
 
-	// Set private key.
+	// Derive the private key from the pseudorandom hash.
 	x := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_Zr(x, system.pairing.get)
 	C.element_from_hash(x, unsafe.Pointer(&hash[0]), sha256.Size)
 
-	// Calculate corresponding public key.
+	// Derive the public key from the private key.
 	gx := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_G2(gx, system.pairing.get)
 	C.element_pow_zn(gx, system.g.get, x)
 
-	// Return result.
+	// Return the key pair.
 	return PublicKey{system, Element{gx}}, PrivateKey{system, Element{x}}, nil
 
 }
 
 // Generate a key pair from the given cryptosystem and divide each key into n
-// shares such that t shares can combine to produce a valid signature. This
-// function allocates C structures on the C heap using malloc. It is the
-// responsibility of the caller to prevent memory leaks by arranging for the C
-// structures to be freed.
+// shares such that t shares can combine signatures to recover a threshold
+// signature. This function allocates C structures on the C heap using malloc.
+// It is the responsibility of the caller to prevent memory leaks by arranging
+// for the C structures to be freed.
 func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateKey, []PrivateKey, error) {
 
-	// Check threshold parameters.
+	// Check the threshold parameters.
 	if t < 1 || n < t {
 		return PublicKey{}, nil, PrivateKey{}, nil, errors.New("bls.GenKeyShares: Bad threshold parameters.")
 	}
 
-	// Generate polynomial.
+	// Generate a polynomial.
 	coeff := make([]*C.struct_element_s, t)
 	var hash [sha256.Size]byte
 	var err error
 	for j := range coeff {
 
-		// Generate cryptographically secure pseudorandom hash.
+		// Generate a cryptographically secure pseudorandom hash.
 		hash, err = randomHash()
 		if err != nil {
 			return PublicKey{}, nil, PrivateKey{}, nil, err
 		}
 
-		// Set polynomial coefficient.
+		// Derive a coefficient of the polynomial from the pseudorandom hash.
 		coeff[j] = (*C.struct_element_s)(C.malloc(sizeOfElement))
 		C.element_init_Zr(coeff[j], system.pairing.get)
 		C.element_from_hash(coeff[j], unsafe.Pointer(&hash[0]), sha256.Size)
 
 	}
 
-	// Calculate public and private key shares.
+	// Derive the key pair and the shares from the polynomial.
 	keys := make([]PublicKey, n+1)
 	secrets := make([]PrivateKey, n+1)
 	var bytes []byte
@@ -223,7 +204,7 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 	C.element_init_Zr(term, system.pairing.get)
 	for i := 0; i < n+1; i++ {
 
-		// Calcualte private key share.
+		// Calculate a share of the private key by evaluating the polynomial.
 		secrets[i].system = system
 		secrets[i].x.get = (*C.struct_element_s)(C.malloc(sizeOfElement))
 		C.element_init_Zr(secrets[i].x.get, system.pairing.get)
@@ -239,7 +220,7 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 			C.element_add(secrets[i].x.get, secrets[i].x.get, term)
 		}
 
-		// Calculate corresponding public key share.
+		// Calculate a share of the public key by exponentiating the system parameter.
 		keys[i].system = system
 		keys[i].gx.get = (*C.struct_element_s)(C.malloc(sizeOfElement))
 		C.element_init_G2(keys[i].gx.get, system.pairing.get)
@@ -254,15 +235,15 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 	C.mpz_clear(&ij[0])
 	C.element_clear(term)
 
-	// Return result.
+	// Return the key pair and the shares.
 	return keys[0], keys[1:], secrets[0], secrets[1:], nil
 
 }
 
-// Sign a hash using the private key.
+// Sign a message digest using the private key.
 func Sign(hash [sha256.Size]byte, secret PrivateKey) ([]byte, error) {
 
-	// Check signature length.
+	// Check the signature length.
 	if secret.system.signatureLength <= 0 {
 		return nil, errors.New("bls.Sign: Signature length must be positive.")
 	}
@@ -285,15 +266,15 @@ func Sign(hash [sha256.Size]byte, secret PrivateKey) ([]byte, error) {
 	C.element_clear(h)
 	C.element_clear(sigma)
 
-	// Return result.
+	// Return the signature.
 	return signature, nil
 
 }
 
-// Verify the signature of a hash using the public key.
+// Verify the signature on a message digest using the public key.
 func Verify(signature []byte, hash [sha256.Size]byte, key PublicKey) (bool, error) {
 
-	// Check signature length.
+	// Check the signature length.
 	if key.system.signatureLength <= 0 {
 		return false, errors.New("bls.Verify: Signature length must be positive.")
 	}
@@ -306,7 +287,7 @@ func Verify(signature []byte, hash [sha256.Size]byte, key PublicKey) (bool, erro
 	C.element_init_G1(sigma, key.system.pairing.get)
 	C.element_from_bytes_compressed(sigma, (*C.uchar)(unsafe.Pointer(&signature[0])))
 
-	// Calculate left-hand side.
+	// Calculate the left-hand side.
 	lhs := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_GT(lhs, key.system.pairing.get)
 	C.element_pairing(lhs, sigma, key.system.g.get)
@@ -316,12 +297,12 @@ func Verify(signature []byte, hash [sha256.Size]byte, key PublicKey) (bool, erro
 	C.element_init_G1(h, key.system.pairing.get)
 	C.element_from_hash(h, unsafe.Pointer(&hash[0]), sha256.Size)
 
-	// Calculate right-hand side.
+	// Calculate the right-hand side.
 	rhs := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_GT(rhs, key.system.pairing.get)
 	C.element_pairing(rhs, h, key.gx.get)
 
-	// Equate left and right-hand side.
+	// Equate the left and right-hand side.
 	C.element_invert(rhs, rhs)
 	C.element_mul(lhs, lhs, rhs)
 	result := C.element_is1(lhs) == 1
@@ -332,7 +313,7 @@ func Verify(signature []byte, hash [sha256.Size]byte, key PublicKey) (bool, erro
 	C.element_clear(rhs)
 	C.element_clear(sigma)
 
-	// Return result.
+	// Return the result.
 	return result, nil
 
 }
@@ -340,12 +321,12 @@ func Verify(signature []byte, hash [sha256.Size]byte, key PublicKey) (bool, erro
 // Aggregate signatures using the cryptosystem.
 func Aggregate(signatures [][]byte, system System) ([]byte, error) {
 
-	// Check list length.
+	// Check the list length.
 	if len(signatures) == 0 {
 		return nil, errors.New("bls.Aggregate: Empty list.")
 	}
 
-	// Check signature length.
+	// Check the signature length.
 	if system.signatureLength <= 0 {
 		return nil, errors.New("bls.Aggregate: Signature length must be positive.")
 	}
@@ -374,15 +355,15 @@ func Aggregate(signatures [][]byte, system System) ([]byte, error) {
 	C.element_clear(sigma)
 	C.element_clear(t)
 
-	// Return result.
+	// Return the aggregate signature.
 	return signature, nil
 
 }
 
-// Verify the aggregate signature of the hashes using the public keys.
+// Verify the aggregate signature of the message digests using the public keys.
 func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []PublicKey) (bool, error) {
 
-	// Check list length.
+	// Check the list length.
 	if len(hashes) == 0 {
 		return false, errors.New("bls.AggregateVerify: Empty list.")
 	}
@@ -390,7 +371,7 @@ func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []Public
 		return false, errors.New("bls.AggregateVerify: List length mismatch.")
 	}
 
-	// Check signature length.
+	// Check the signature length.
 	if keys[0].system.signatureLength <= 0 {
 		return false, errors.New("bls.AggregateVerify: Signature length must be positive.")
 	}
@@ -398,7 +379,7 @@ func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []Public
 		return false, errors.New("bls.AggregateVerify: Signature length mismatch.")
 	}
 
-	// Check uniqueness constraint.
+	// Check the uniqueness constraint.
 	if !uniqueHashes(hashes) {
 		return false, errors.New("bls.AggregateVerify: Hashes must be distinct.")
 	}
@@ -408,12 +389,12 @@ func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []Public
 	C.element_init_G1(sigma, keys[0].system.pairing.get)
 	C.element_from_bytes_compressed(sigma, (*C.uchar)(unsafe.Pointer(&signature[0])))
 
-	// Calculate left-hand side.
+	// Calculate the left-hand side.
 	lhs := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_GT(lhs, keys[0].system.pairing.get)
 	C.element_pairing(lhs, sigma, keys[0].system.g.get)
 
-	// Calculate right-hand side.
+	// Calculate the right-hand side.
 	h := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_G1(h, keys[0].system.pairing.get)
 	C.element_from_hash(h, unsafe.Pointer(&hashes[0][0]), sha256.Size)
@@ -428,7 +409,7 @@ func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []Public
 		C.element_mul(rhs, rhs, t)
 	}
 
-	// Equate left and right-hand side.
+	// Equate the left and right-hand side.
 	C.element_invert(rhs, rhs)
 	C.element_mul(lhs, lhs, rhs)
 	result := C.element_is1(lhs) == 1
@@ -440,16 +421,16 @@ func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []Public
 	C.element_clear(sigma)
 	C.element_clear(t)
 
-	// Return result.
+	// Return the result.
 	return result, nil
 
 }
 
-// Recover a signature from the signature shares provided by the group members
-// using the cryptosystem.
-func Recover(signatures [][]byte, memberIds []int, system System) ([]byte, error) {
+// Recover a threshold signature from the signature shares provided by the group
+// members using the cryptosystem.
+func Threshold(signatures [][]byte, memberIds []int, system System) ([]byte, error) {
 
-	// Check list length.
+	// Check the list length.
 	if len(signatures) == 0 {
 		return nil, errors.New("bls.Recover: Empty list.")
 	}
@@ -457,7 +438,7 @@ func Recover(signatures [][]byte, memberIds []int, system System) ([]byte, error
 		return nil, errors.New("bls.Recover: List length mismatch.")
 	}
 
-	// Check signature length.
+	// Check the signature length.
 	if system.signatureLength <= 0 {
 		return nil, errors.New("bls.Recover: Signature length must be positive.")
 	}
@@ -467,7 +448,7 @@ func Recover(signatures [][]byte, memberIds []int, system System) ([]byte, error
 		}
 	}
 
-	// Determine group order.
+	// Determine the group order.
 	n := (C.mpz_sizeinbase(&system.pairing.get.r[0], 2) + 7) / 8
 	bytes := make([]byte, n)
 	C.mpz_export(unsafe.Pointer(&bytes[0]), &n, 1, 1, 1, 0, &system.pairing.get.r[0])
@@ -503,7 +484,7 @@ func Recover(signatures [][]byte, memberIds []int, system System) ([]byte, error
 			C.mpz_import(&lambda[0], C.size_t(len(bytes)), 1, 1, 1, 0, unsafe.Pointer(&bytes[0]))
 		}
 
-		// Update accumulator.
+		// Update the accumulator.
 		C.element_from_bytes_compressed(s, (*C.uchar)(unsafe.Pointer(&signatures[i][0])))
 		C.element_pow_mpz(s, s, &lambda[0])
 		C.element_mul(sigma, sigma, s)
@@ -519,7 +500,7 @@ func Recover(signatures [][]byte, memberIds []int, system System) ([]byte, error
 	C.mpz_clear(&lambda[0])
 	C.element_clear(sigma)
 
-	// Return result.
+	// Return the threshold signature.
 	return signature, nil
 
 }

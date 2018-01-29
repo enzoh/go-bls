@@ -2,10 +2,10 @@
 [![Build Status](https://travis-ci.org/enzoh/go-bls.svg?branch=master)](https://travis-ci.org/enzoh/go-bls?branch=master)
 
 ## Overview
-This library provides a high-level API for signing and verifying message digests using the BLS signature scheme.
+This library provides a high-level API for signing and verifying message digests using the BLS signature scheme. It includes support for aggregate signatures, threshold signatures, and ring signatures.
 
 ## Prerequisites
-Install the pairing-based cryptography library.
+Install the pairing-based crypto library from Stanford.
 ```bash
 wget https://crypto.stanford.edu/pbc/files/pbc-0.5.14.tar.gz
 if [[ $(sha256sum pbc-0.5.14.tar.gz) = \
