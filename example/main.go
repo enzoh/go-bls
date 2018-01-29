@@ -51,7 +51,7 @@ func main() {
 	}
 
 	// Recover a group signature from the signature shares.
-	signature, err := bls.Recover(signatures, participants, system)
+	signature, err := bls.Threshold(signatures, participants, system)
 	if err != nil {
 		panic(err)
 	}

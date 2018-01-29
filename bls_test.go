@@ -157,7 +157,7 @@ func TestThresholdSignature(test *testing.T) {
 	}
 
 	// Recover signature.
-	signature, err := Recover(signatures, memberIds, system)
+	signature, err := Threshold(signatures, memberIds, system)
 	if err != nil {
 		test.Fatal(err)
 	}
