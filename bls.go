@@ -262,7 +262,7 @@ func Sign(hash [sha256.Size]byte, secret PrivateKey) Signature {
 
 }
 
-// Verify a signature on a message digest using the public key of the signer.
+// Verify a signature on the message digest using the public key of the signer.
 func Verify(signature Signature, hash [sha256.Size]byte, key PublicKey) bool {
 
 	// Calculate the left-hand side.
@@ -441,8 +441,8 @@ func Threshold(shares []Signature, memberIds []int, system System) (Signature, e
 
 }
 
-//
-func (system System) ToBytes(signature Signature) []byte {
+// Convert a signature to a byte slice.
+func (system System) SignatureToBytes(signature Signature) []byte {
 	n := int(C.pairing_length_in_bytes_compressed_G1(system.pairing.get))
 	if n < 1 {
 		return nil
@@ -452,8 +452,8 @@ func (system System) ToBytes(signature Signature) []byte {
 	return bytes
 }
 
-//
-func (system System) FromBytes(bytes []byte) (Signature, error) {
+// Convert a byte slice to a signature.
+func (system System) SignatureFromBytes(bytes []byte) (Signature, error) {
 	n := int(C.pairing_length_in_bytes_compressed_G1(system.pairing.get))
 	if n != len(bytes) {
 
