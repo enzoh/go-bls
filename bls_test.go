@@ -191,6 +191,54 @@ func TestThresholdSignature(test *testing.T) {
 
 }
 
+func TestToFromBytes(test *testing.T) {
+
+	message := "This is a message."
+
+	// Generate key pair.
+	params := GenParamsTypeA(160, 512)
+	pairing := GenPairing(params)
+	system, err := GenSystem(pairing)
+	if err != nil {
+		test.Fatal(err)
+	}
+	key, secret, err := GenKeys(system)
+	if err != nil {
+		test.Fatal(err)
+	}
+
+	// Sign and serialize.
+	hash := sha256.Sum256([]byte(message))
+	sigOut, err := Sign(hash, secret)
+	if err != nil {
+		test.Fatal(err)
+	}
+	bytes := system.ToBytes(sigOut)
+
+	// Deserialize and verify.
+	sigIn, err := system.FromBytes(bytes)
+	if err != nil {
+		test.Fatal(err)
+	}
+	valid, err := Verify(sigIn, hash, key)
+	if err != nil {
+		test.Fatal(err)
+	}
+	if !valid {
+		test.Fatal("Failed to verify signature.")
+	}
+
+	// Clean up.
+	sigOut.Free()
+	sigIn.Free()
+	key.Free()
+	secret.Free()
+	system.Free()
+	pairing.Free()
+	params.Free()
+
+}
+
 func BenchmarkVerify(benchmark *testing.B) {
 
 	message := "This is a message."

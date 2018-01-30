@@ -14,6 +14,7 @@ package bls
 import (
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"math/big"
 	"unsafe"
 )
@@ -192,7 +193,7 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 
 	}
 
-	// Derive the key pair and the shares from the polynomial.
+	// Derive the key pair and the key shares from the polynomial.
 	keys := make([]PublicKey, n+1)
 	secrets := make([]PrivateKey, n+1)
 	var bytes []byte
@@ -233,7 +234,7 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 	C.mpz_clear(&ij[0])
 	C.element_clear(term)
 
-	// Return the key pair and the shares.
+	// Return the key pair and the key shares.
 	return keys[0], keys[1:], secrets[0], secrets[1:], nil
 
 }
@@ -438,6 +439,33 @@ func Threshold(shares []Signature, memberIds []int, system System) (Signature, e
 	// Return the threshold signature.
 	return Element{sigma}, nil
 
+}
+
+//
+func (system System) ToBytes(signature Signature) []byte {
+	n := int(C.pairing_length_in_bytes_compressed_G1(system.pairing.get))
+	if n < 1 {
+		return nil
+	}
+	bytes := make([]byte, n)
+	C.element_to_bytes_compressed((*C.uchar)(unsafe.Pointer(&bytes[0])), signature.get)
+	return bytes
+}
+
+//
+func (system System) FromBytes(bytes []byte) (Signature, error) {
+	n := int(C.pairing_length_in_bytes_compressed_G1(system.pairing.get))
+	if n != len(bytes) {
+
+		fmt.Println("expecting size", n)
+		fmt.Println("but received size", len(bytes))
+
+		return Element{}, errors.New("bls.FromBytes: Signature length mismatch.")
+	}
+	sigma := (*C.struct_element_s)(C.malloc(sizeOfElement))
+	C.element_init_G1(sigma, system.pairing.get)
+	C.element_from_bytes_compressed(sigma, (*C.uchar)(unsafe.Pointer(&bytes[0])))
+	return Element{sigma}, nil
 }
 
 // Free the memory occupied by the element. The element cannot be used after
