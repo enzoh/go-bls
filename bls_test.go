@@ -50,6 +50,7 @@ func TestSignVerify(test *testing.T) {
 	}
 
 	// Clean up.
+	signature.Free()
 	key.Free()
 	secret.Free()
 	system.Free()
@@ -89,7 +90,7 @@ func TestAggregateVerify(test *testing.T) {
 
 	// Sign messages.
 	hashes := make([][sha256.Size]byte, n)
-	signatures := make([][]byte, n)
+	signatures := make([]Signature, n)
 	for i := 0; i < n; i++ {
 		hashes[i] = sha256.Sum256([]byte(messages[i]))
 		signatures[i], err = Sign(hashes[i], secrets[i])
@@ -114,7 +115,9 @@ func TestAggregateVerify(test *testing.T) {
 	}
 
 	// Clean up.
+	signature.Free()
 	for i := 0; i < n; i++ {
+		signatures[i].Free()
 		keys[i].Free()
 		secrets[i].Free()
 	}
@@ -148,7 +151,7 @@ func TestThresholdSignature(test *testing.T) {
 
 	// Sign message.
 	hash := sha256.Sum256([]byte(message))
-	signatures := make([][]byte, t)
+	signatures := make([]Signature, t)
 	for i := 0; i < t; i++ {
 		signatures[i], err = Sign(hash, memberSecrets[memberIds[i]])
 		if err != nil {
@@ -172,8 +175,12 @@ func TestThresholdSignature(test *testing.T) {
 	}
 
 	// Clean up.
+	signature.Free()
 	groupKey.Free()
 	groupSecret.Free()
+	for i := 0; i < t; i++ {
+		signatures[i].Free()
+	}
 	for i := 0; i < n; i++ {
 		memberKeys[i].Free()
 		memberSecrets[i].Free()
@@ -215,6 +222,7 @@ func BenchmarkVerify(benchmark *testing.B) {
 	benchmark.StopTimer()
 
 	// Clean up.
+	signature.Free()
 	key.Free()
 	secret.Free()
 	system.Free()

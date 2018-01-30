@@ -54,9 +54,8 @@ type Pairing struct {
 }
 
 type System struct {
-	pairing         Pairing
-	g               Element
-	signatureLength int
+	pairing Pairing
+	g       Element
 }
 
 type PublicKey struct {
@@ -68,6 +67,8 @@ type PrivateKey struct {
 	system System
 	x      Element
 }
+
+type Signature = Element
 
 // Generate type A pairing parameters. This function allocates C structures on
 // the C heap using malloc. It is the responsibility of the caller to prevent
@@ -129,11 +130,8 @@ func GenSystem(pairing Pairing) (System, error) {
 	C.element_init_G2(g, pairing.get)
 	C.element_from_hash(g, unsafe.Pointer(&hash[0]), sha256.Size)
 
-	// Determine the length of a signature.
-	signatureLength := int(C.pairing_length_in_bytes_compressed_G1(pairing.get))
-
 	// Return the cryptosystem.
-	return System{pairing, Element{g}, signatureLength}, nil
+	return System{pairing, Element{g}}, nil
 
 }
 
@@ -240,13 +238,10 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 
 }
 
-// Sign a message digest using a private key.
-func Sign(hash [sha256.Size]byte, secret PrivateKey) ([]byte, error) {
-
-	// Check the signature length.
-	if secret.system.signatureLength <= 0 {
-		return nil, errors.New("bls.Sign: Signature length must be positive.")
-	}
+// Sign a message digest using a private key. This function allocates C
+// structures on the C heap using malloc. It is the responsibility of the caller
+// to prevent memory leaks by arranging for the C structures to be freed.
+func Sign(hash [sha256.Size]byte, secret PrivateKey) (Signature, error) {
 
 	// Calculate h.
 	h := (*C.struct_element_s)(C.malloc(sizeOfElement))
@@ -258,39 +253,21 @@ func Sign(hash [sha256.Size]byte, secret PrivateKey) ([]byte, error) {
 	C.element_init_G1(sigma, secret.system.pairing.get)
 	C.element_pow_zn(sigma, h, secret.x.get)
 
-	// Convert sigma to bytes.
-	signature := make([]byte, secret.system.signatureLength)
-	C.element_to_bytes_compressed((*C.uchar)(unsafe.Pointer(&signature[0])), sigma)
-
 	// Clean up.
 	C.element_clear(h)
-	C.element_clear(sigma)
 
 	// Return the signature.
-	return signature, nil
+	return Element{sigma}, nil
 
 }
 
 // Verify a signature on a message digest using the public key of the signer.
-func Verify(signature []byte, hash [sha256.Size]byte, key PublicKey) (bool, error) {
-
-	// Check the signature length.
-	if key.system.signatureLength <= 0 {
-		return false, errors.New("bls.Verify: Signature length must be positive.")
-	}
-	if key.system.signatureLength != len(signature) {
-		return false, errors.New("bls.Verify: Signature length mismatch.")
-	}
-
-	// Calculate sigma.
-	sigma := (*C.struct_element_s)(C.malloc(sizeOfElement))
-	C.element_init_G1(sigma, key.system.pairing.get)
-	C.element_from_bytes_compressed(sigma, (*C.uchar)(unsafe.Pointer(&signature[0])))
+func Verify(signature Signature, hash [sha256.Size]byte, key PublicKey) (bool, error) {
 
 	// Calculate the left-hand side.
 	lhs := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_GT(lhs, key.system.pairing.get)
-	C.element_pairing(lhs, sigma, key.system.g.get)
+	C.element_pairing(lhs, signature.get, key.system.g.get)
 
 	// Calculate h.
 	h := (*C.struct_element_s)(C.malloc(sizeOfElement))
@@ -311,58 +288,43 @@ func Verify(signature []byte, hash [sha256.Size]byte, key PublicKey) (bool, erro
 	C.element_clear(h)
 	C.element_clear(lhs)
 	C.element_clear(rhs)
-	C.element_clear(sigma)
 
 	// Return the result.
 	return result, nil
 
 }
 
-// Aggregate signatures using the cryptosystem.
-func Aggregate(signatures [][]byte, system System) ([]byte, error) {
+// Aggregate signatures using the cryptosystem. This function allocates C
+// structures on the C heap using malloc. It is the responsibility of the caller
+// to prevent memory leaks by arranging for the C structures to be freed.
+func Aggregate(signatures []Signature, system System) (Signature, error) {
 
 	// Check the list length.
 	if len(signatures) == 0 {
-		return nil, errors.New("bls.Aggregate: Empty list.")
-	}
-
-	// Check the signature length.
-	if system.signatureLength <= 0 {
-		return nil, errors.New("bls.Aggregate: Signature length must be positive.")
-	}
-	for i := range signatures {
-		if system.signatureLength != len(signatures[i]) {
-			return nil, errors.New("bls.Aggregate: Signature length mismatch.")
-		}
+		return Element{}, errors.New("bls.Aggregate: Empty list.")
 	}
 
 	// Calculate sigma.
 	sigma := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_G1(sigma, system.pairing.get)
-	C.element_from_bytes_compressed(sigma, (*C.uchar)(unsafe.Pointer(&signatures[0][0])))
+	C.element_set(sigma, signatures[0].get)
 	t := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_G1(t, system.pairing.get)
 	for i := 1; i < len(signatures); i++ {
-		C.element_from_bytes_compressed(t, (*C.uchar)(unsafe.Pointer(&signatures[i][0])))
-		C.element_mul(sigma, sigma, t)
+		C.element_mul(sigma, sigma, signatures[i].get)
 	}
 
-	// Convert sigma to bytes.
-	signature := make([]byte, system.signatureLength)
-	C.element_to_bytes_compressed((*C.uchar)(unsafe.Pointer(&signature[0])), sigma)
-
 	// Clean up.
-	C.element_clear(sigma)
 	C.element_clear(t)
 
 	// Return the aggregate signature.
-	return signature, nil
+	return Element{sigma}, nil
 
 }
 
 // Verify an aggregate signature on the message digests using the public keys of
 // the signers.
-func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []PublicKey) (bool, error) {
+func AggregateVerify(signature Signature, hashes [][sha256.Size]byte, keys []PublicKey) (bool, error) {
 
 	// Check the list length.
 	if len(hashes) == 0 {
@@ -372,28 +334,15 @@ func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []Public
 		return false, errors.New("bls.AggregateVerify: List length mismatch.")
 	}
 
-	// Check the signature length.
-	if keys[0].system.signatureLength <= 0 {
-		return false, errors.New("bls.AggregateVerify: Signature length must be positive.")
-	}
-	if keys[0].system.signatureLength != len(signature) {
-		return false, errors.New("bls.AggregateVerify: Signature length mismatch.")
-	}
-
 	// Check the uniqueness constraint.
 	if !uniqueHashes(hashes) {
-		return false, errors.New("bls.AggregateVerify: Hashes must be distinct.")
+		return false, errors.New("bls.AggregateVerify: Message digests must be distinct.")
 	}
-
-	// Calculate sigma.
-	sigma := (*C.struct_element_s)(C.malloc(sizeOfElement))
-	C.element_init_G1(sigma, keys[0].system.pairing.get)
-	C.element_from_bytes_compressed(sigma, (*C.uchar)(unsafe.Pointer(&signature[0])))
 
 	// Calculate the left-hand side.
 	lhs := (*C.struct_element_s)(C.malloc(sizeOfElement))
 	C.element_init_GT(lhs, keys[0].system.pairing.get)
-	C.element_pairing(lhs, sigma, keys[0].system.g.get)
+	C.element_pairing(lhs, signature.get, keys[0].system.g.get)
 
 	// Calculate the right-hand side.
 	h := (*C.struct_element_s)(C.malloc(sizeOfElement))
@@ -419,7 +368,6 @@ func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []Public
 	C.element_clear(h)
 	C.element_clear(lhs)
 	C.element_clear(rhs)
-	C.element_clear(sigma)
 	C.element_clear(t)
 
 	// Return the result.
@@ -428,25 +376,17 @@ func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []Public
 }
 
 // Recover a threshold signature from the signature shares provided by the group
-// members using the cryptosystem.
-func Threshold(signatures [][]byte, memberIds []int, system System) ([]byte, error) {
+// members using the cryptosystem. This function allocates C structures on the C
+// heap using malloc. It is the responsibility of the caller to prevent memory
+// leaks by arranging for the C structures to be freed.
+func Threshold(shares []Signature, memberIds []int, system System) (Signature, error) {
 
 	// Check the list length.
-	if len(signatures) == 0 {
-		return nil, errors.New("bls.Recover: Empty list.")
+	if len(shares) == 0 {
+		return Element{}, errors.New("bls.Recover: Empty list.")
 	}
-	if len(signatures) != len(memberIds) {
-		return nil, errors.New("bls.Recover: List length mismatch.")
-	}
-
-	// Check the signature length.
-	if system.signatureLength <= 0 {
-		return nil, errors.New("bls.Recover: Signature length must be positive.")
-	}
-	for i := range signatures {
-		if system.signatureLength != len(signatures[i]) {
-			return nil, errors.New("bls.Recover: Signature length mismatch.")
-		}
+	if len(shares) != len(memberIds) {
+		return Element{}, errors.New("bls.Recover: List length mismatch.")
 	}
 
 	// Determine the group order.
@@ -486,23 +426,17 @@ func Threshold(signatures [][]byte, memberIds []int, system System) ([]byte, err
 		}
 
 		// Update the accumulator.
-		C.element_from_bytes_compressed(s, (*C.uchar)(unsafe.Pointer(&signatures[i][0])))
-		C.element_pow_mpz(s, s, &lambda[0])
+		C.element_pow_mpz(s, shares[i].get, &lambda[0])
 		C.element_mul(sigma, sigma, s)
 
 	}
 
-	// Convert sigma to bytes.
-	signature := make([]byte, system.signatureLength)
-	C.element_to_bytes_compressed((*C.uchar)(unsafe.Pointer(&signature[0])), sigma)
-
 	// Clean up.
 	C.element_clear(s)
 	C.mpz_clear(&lambda[0])
-	C.element_clear(sigma)
 
 	// Return the threshold signature.
-	return signature, nil
+	return Element{sigma}, nil
 
 }
 
