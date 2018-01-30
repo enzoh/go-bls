@@ -240,7 +240,7 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 
 }
 
-// Sign a message digest using the private key.
+// Sign a message digest using a private key.
 func Sign(hash [sha256.Size]byte, secret PrivateKey) ([]byte, error) {
 
 	// Check the signature length.
@@ -271,7 +271,7 @@ func Sign(hash [sha256.Size]byte, secret PrivateKey) ([]byte, error) {
 
 }
 
-// Verify the signature on a message digest using the public key.
+// Verify a signature on a message digest using the public key of the signer.
 func Verify(signature []byte, hash [sha256.Size]byte, key PublicKey) (bool, error) {
 
 	// Check the signature length.
@@ -360,7 +360,8 @@ func Aggregate(signatures [][]byte, system System) ([]byte, error) {
 
 }
 
-// Verify the aggregate signature of the message digests using the public keys.
+// Verify an aggregate signature on the message digests using the public keys of
+// the signers.
 func AggregateVerify(signature []byte, hashes [][sha256.Size]byte, keys []PublicKey) (bool, error) {
 
 	// Check the list length.
