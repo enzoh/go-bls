@@ -242,7 +242,7 @@ func GenKeyShares(t int, n int, system System) (PublicKey, []PublicKey, PrivateK
 // Sign a message digest using a private key. This function allocates C
 // structures on the C heap using malloc. It is the responsibility of the caller
 // to prevent memory leaks by arranging for the C structures to be freed.
-func Sign(hash [sha256.Size]byte, secret PrivateKey) (Signature, error) {
+func Sign(hash [sha256.Size]byte, secret PrivateKey) Signature {
 
 	// Calculate h.
 	h := (*C.struct_element_s)(C.malloc(sizeOfElement))
@@ -258,12 +258,12 @@ func Sign(hash [sha256.Size]byte, secret PrivateKey) (Signature, error) {
 	C.element_clear(h)
 
 	// Return the signature.
-	return Element{sigma}, nil
+	return Element{sigma}
 
 }
 
 // Verify a signature on a message digest using the public key of the signer.
-func Verify(signature Signature, hash [sha256.Size]byte, key PublicKey) (bool, error) {
+func Verify(signature Signature, hash [sha256.Size]byte, key PublicKey) bool {
 
 	// Calculate the left-hand side.
 	lhs := (*C.struct_element_s)(C.malloc(sizeOfElement))
@@ -291,7 +291,7 @@ func Verify(signature Signature, hash [sha256.Size]byte, key PublicKey) (bool, e
 	C.element_clear(rhs)
 
 	// Return the result.
-	return result, nil
+	return result
 
 }
 

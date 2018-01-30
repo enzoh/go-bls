@@ -21,7 +21,7 @@ func TestSignVerify(test *testing.T) {
 
 	message := "This is a message."
 
-	// Generate key pair.
+	// Generate a key pair.
 	params := GenParamsTypeA(160, 512)
 	pairing := GenPairing(params)
 	system, err := GenSystem(pairing)
@@ -33,19 +33,12 @@ func TestSignVerify(test *testing.T) {
 		test.Fatal(err)
 	}
 
-	// Sign message.
+	// Sign the message.
 	hash := sha256.Sum256([]byte(message))
-	signature, err := Sign(hash, secret)
-	if err != nil {
-		test.Fatal(err)
-	}
+	signature := Sign(hash, secret)
 
-	// Verify signature.
-	valid, err := Verify(signature, hash, key)
-	if err != nil {
-		test.Fatal(err)
-	}
-	if !valid {
+	// Verify the signature.
+	if !Verify(signature, hash, key) {
 		test.Fatal("Failed to verify signature.")
 	}
 
@@ -88,34 +81,31 @@ func TestAggregateVerify(test *testing.T) {
 		}
 	}
 
-	// Sign messages.
+	// Sign the messages.
 	hashes := make([][sha256.Size]byte, n)
 	signatures := make([]Signature, n)
 	for i := 0; i < n; i++ {
 		hashes[i] = sha256.Sum256([]byte(messages[i]))
-		signatures[i], err = Sign(hashes[i], secrets[i])
-		if err != nil {
-			test.Fatal(err)
-		}
+		signatures[i] = Sign(hashes[i], secrets[i])
 	}
 
-	// Aggregate signatures.
-	signature, err := Aggregate(signatures, system)
+	// Aggregate the signatures.
+	aggregate, err := Aggregate(signatures, system)
 	if err != nil {
 		test.Fatal(err)
 	}
 
-	// Verify aggregate signature.
-	valid, err := AggregateVerify(signature, hashes, keys)
+	// Verify the aggregate signature.
+	valid, err := AggregateVerify(aggregate, hashes, keys)
 	if err != nil {
 		test.Fatal(err)
 	}
 	if !valid {
-		test.Fatal("Failed to verify signature.")
+		test.Fatal("Failed to verify aggregate signature.")
 	}
 
 	// Clean up.
-	signature.Free()
+	aggregate.Free()
 	for i := 0; i < n; i++ {
 		signatures[i].Free()
 		keys[i].Free()
@@ -149,28 +139,21 @@ func TestThresholdSignature(test *testing.T) {
 	// Select group members.
 	memberIds := rand.Perm(n)[:t]
 
-	// Sign message.
+	// Sign the message.
 	hash := sha256.Sum256([]byte(message))
-	signatures := make([]Signature, t)
+	shares := make([]Signature, t)
 	for i := 0; i < t; i++ {
-		signatures[i], err = Sign(hash, memberSecrets[memberIds[i]])
-		if err != nil {
-			test.Fatal(err)
-		}
+		shares[i] = Sign(hash, memberSecrets[memberIds[i]])
 	}
 
-	// Recover signature.
-	signature, err := Threshold(signatures, memberIds, system)
+	// Recover the threshold signature.
+	signature, err := Threshold(shares, memberIds, system)
 	if err != nil {
 		test.Fatal(err)
 	}
 
-	// Verify signature.
-	valid, err := Verify(signature, hash, groupKey)
-	if err != nil {
-		test.Fatal(err)
-	}
-	if !valid {
+	// Verify the threshold signature.
+	if !Verify(signature, hash, groupKey) {
 		test.Fatal("Failed to verify signature.")
 	}
 
@@ -179,7 +162,7 @@ func TestThresholdSignature(test *testing.T) {
 	groupKey.Free()
 	groupSecret.Free()
 	for i := 0; i < t; i++ {
-		signatures[i].Free()
+		shares[i].Free()
 	}
 	for i := 0; i < n; i++ {
 		memberKeys[i].Free()
@@ -195,7 +178,7 @@ func TestToFromBytes(test *testing.T) {
 
 	message := "This is a message."
 
-	// Generate key pair.
+	// Generate a key pair.
 	params := GenParamsTypeA(160, 512)
 	pairing := GenPairing(params)
 	system, err := GenSystem(pairing)
@@ -207,30 +190,23 @@ func TestToFromBytes(test *testing.T) {
 		test.Fatal(err)
 	}
 
-	// Sign and serialize.
+	// Sign the message and serialize the signature.
 	hash := sha256.Sum256([]byte(message))
-	sigOut, err := Sign(hash, secret)
-	if err != nil {
-		test.Fatal(err)
-	}
-	bytes := system.ToBytes(sigOut)
+	signatureOut := Sign(hash, secret)
+	bytes := system.ToBytes(signatureOut)
 
-	// Deserialize and verify.
-	sigIn, err := system.FromBytes(bytes)
+	// Deserialize the signature and verify it.
+	signatureIn, err := system.FromBytes(bytes)
 	if err != nil {
 		test.Fatal(err)
 	}
-	valid, err := Verify(sigIn, hash, key)
-	if err != nil {
-		test.Fatal(err)
-	}
-	if !valid {
+	if !Verify(signatureIn, hash, key) {
 		test.Fatal("Failed to verify signature.")
 	}
 
 	// Clean up.
-	sigOut.Free()
-	sigIn.Free()
+	signatureIn.Free()
+	signatureOut.Free()
 	key.Free()
 	secret.Free()
 	system.Free()
@@ -243,7 +219,7 @@ func BenchmarkVerify(benchmark *testing.B) {
 
 	message := "This is a message."
 
-	// Generate key pair.
+	// Generate a key pair.
 	params := GenParamsTypeF(160)
 	pairing := GenPairing(params)
 	system, err := GenSystem(pairing)
@@ -255,14 +231,11 @@ func BenchmarkVerify(benchmark *testing.B) {
 		benchmark.Fatal(err)
 	}
 
-	// Sign message.
+	// Sign the message.
 	hash := sha256.Sum256([]byte(message))
-	signature, err := Sign(hash, secret)
-	if err != nil {
-		benchmark.Fatal(err)
-	}
+	signature := Sign(hash, secret)
 
-	// Verify signature.
+	// Verify the signature.
 	benchmark.StartTimer()
 	for i := 0; i < benchmark.N; i++ {
 		Verify(signature, hash, key)
