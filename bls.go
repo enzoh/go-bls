@@ -14,7 +14,6 @@ package bls
 import (
 	"crypto/sha256"
 	"errors"
-	"fmt"
 	"math/big"
 	"unsafe"
 )
@@ -442,7 +441,7 @@ func Threshold(shares []Signature, memberIds []int, system System) (Signature, e
 }
 
 // Convert a signature to a byte slice.
-func (system System) SignatureToBytes(signature Signature) []byte {
+func (system System) SigToBytes(signature Signature) []byte {
 	n := int(C.pairing_length_in_bytes_compressed_G1(system.pairing.get))
 	if n < 1 {
 		return nil
@@ -453,13 +452,9 @@ func (system System) SignatureToBytes(signature Signature) []byte {
 }
 
 // Convert a byte slice to a signature.
-func (system System) SignatureFromBytes(bytes []byte) (Signature, error) {
+func (system System) SigFromBytes(bytes []byte) (Signature, error) {
 	n := int(C.pairing_length_in_bytes_compressed_G1(system.pairing.get))
 	if n != len(bytes) {
-
-		fmt.Println("expecting size", n)
-		fmt.Println("but received size", len(bytes))
-
 		return Element{}, errors.New("bls.FromBytes: Signature length mismatch.")
 	}
 	sigma := (*C.struct_element_s)(C.malloc(sizeOfElement))

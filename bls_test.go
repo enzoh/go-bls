@@ -193,10 +193,10 @@ func TestToFromBytes(test *testing.T) {
 	// Sign the message and serialize the signature.
 	hash := sha256.Sum256([]byte(message))
 	signatureOut := Sign(hash, secret)
-	bytes := system.ToBytes(signatureOut)
+	bytes := system.SigToBytes(signatureOut)
 
 	// Deserialize the signature and verify it.
-	signatureIn, err := system.FromBytes(bytes)
+	signatureIn, err := system.SigFromBytes(bytes)
 	if err != nil {
 		test.Fatal(err)
 	}
