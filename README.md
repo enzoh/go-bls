@@ -1,6 +1,9 @@
 # Boneh–Lynn–Shacham Signature Scheme
 [![Build Status](https://travis-ci.org/enzoh/go-bls.svg?branch=master)](https://travis-ci.org/enzoh/go-bls?branch=master)
 
+## Disclaimer
+I wrote this library to familiarize myself with some basic pairing-based cryptosystems. I am not a cryptographer. Nor has any cryptographer that I know reviewed this code. I would advise against using it in any production system.
+
 ## Overview
 This library provides a high-level API for signing and verifying message digests using the BLS signature scheme. It includes support for aggregate signatures, threshold signatures, and ring signatures.
 
