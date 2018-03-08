@@ -105,6 +105,24 @@ func GenParamsTypeF(bits int) Params {
 	return Params{params}
 }
 
+// ParamsFromBytes imports Params from the provided byte slice.
+// It expects the data format exported by ToBytes. An example of Type A
+// params of this form can be found in param/a.param
+//
+// This function allocates C structures on the C heap using malloc. It is
+// the responsibility of the caller to prevent memory leaks by arranging
+// for the C structures to be freed.
+func ParamsFromBytes(bytes []byte) (Params, error) {
+	s := C.CString(string(bytes))
+	defer C.free(unsafe.Pointer(s))
+	params := (*C.struct_pbc_param_s)(C.malloc(sizeOfParams))
+	rv := C.pbc_param_init_set_str(params, s)
+	if rv == 1 {
+		return Params{}, errors.New("bls.FromBytes: Failed to create Params from bytes.")
+	}
+	return Params{params}, nil
+}
+
 // Generate a pairing from the given parameters. This function allocates C
 // structures on the C heap using malloc. It is the responsibility of the caller
 // to prevent memory leaks by arranging for the C structures to be freed.
@@ -133,6 +151,22 @@ func GenSystem(pairing Pairing) (System, error) {
 	// Return the cryptosystem.
 	return System{pairing, Element{g}}, nil
 
+}
+
+// SystemFromBytes imports a System from the provided byte slice.
+//
+// This function allocates C structures on the C heap using malloc. It is
+// the responsibility of the caller to prevent memory leaks by arranging
+// for the C structures to be freed.
+func SystemFromBytes(pairing Pairing, bytes []byte) (System, error) {
+	n := int(C.pairing_length_in_bytes_compressed_G2(pairing.get))
+	if n != len(bytes) {
+		return System{}, errors.New("bls.FromBytes: System length mismatch.")
+	}
+	g := (*C.struct_element_s)(C.malloc(sizeOfElement))
+	C.element_init_G2(g, pairing.get)
+	C.element_from_bytes_compressed(g, (*C.uchar)(unsafe.Pointer(&bytes[0])))
+	return System{pairing, Element{g}}, nil
 }
 
 // Generate a key pair from the given cryptosystem. This function allocates C
@@ -481,10 +515,37 @@ func (pairing Pairing) Free() {
 	C.pairing_clear(pairing.get)
 }
 
+// ToBytes exports Params to a byte slice.
+// The output format is a custom set of ASCII key-value pairs. Pairs are
+// separated by the space character (` `), and delimited by a newline (`\n`).
+func (params Params) ToBytes() ([]byte, error) {
+	var buf *C.char
+	var size C.size_t
+
+	f := C.open_memstream(&buf, &size)
+	defer C.free(unsafe.Pointer(buf))
+
+	C.pbc_param_out_str(f, params.get)
+	C.fclose(f)
+
+	return C.GoBytes(unsafe.Pointer(buf), C.int(size)), nil
+}
+
 // Free the memory occupied by the cryptosystem. The cryptosystem cannot be used
 // after calling this function.
 func (system System) Free() {
 	system.g.Free()
+}
+
+// ToBytes exports the System to a byte slice.
+func (system System) ToBytes() []byte {
+	n := int(C.pairing_length_in_bytes_compressed_G2(system.pairing.get))
+	if n < 1 {
+		return nil
+	}
+	bytes := make([]byte, n)
+	C.element_to_bytes_compressed((*C.uchar)(unsafe.Pointer(&bytes[0])), system.g.get)
+	return bytes
 }
 
 // Free the memory occupied by the public key. The public key cannot be used
